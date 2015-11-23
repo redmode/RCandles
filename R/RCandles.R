@@ -1,21 +1,27 @@
 #' @export
 RCandles <- function(filename,
-                     type = "candlestick",
                      title = "",
-                     indicators = c("MACD", "RSI"),
+                     width = 640,
+                     height = 480,
+                     background_color = "black",
+                     line_color = "green",
+                     up_color = "white",
+                     down_color = "rgba(255, 255, 255, 0)",
+                     vertical_lines = NULL,
                      trendlines = NULL,
-                     vdividers = NULL,
-                     annotations = NULL,
-                     width = NULL, height = NULL) {
+                     annotations = NULL) {
 
   # forward options using x
-  x = list(type = type,
-           title = title,
-           indicators = indicators,
-           trendlines = trendlines,
-           vdividers = vdividers,
-           width = width,
-           height = height)
+  x <- list(
+    title = title,
+    width = width,
+    height = height,
+    background_color = background_color,
+    line_color = line_color,
+    up_color = up_color,
+    down_color = down_color,
+    vertical_lines = vertical_lines,
+    trendlines = trendlines)
 
   RCandlesEnv$filename <- normalizePath(filename)
   RCandlesEnv$x <- x
@@ -50,13 +56,16 @@ RCandles_html <- function(id, style, class, ...) {
   .script <- "
   $(function () {
   data = <DATA>;
-  // create the chart
+
+  // Creates the chart
   $('#container').highcharts('StockChart', {
 
+  // Background code
   chart: {
-    backgroundColor: 'black',
+    backgroundColor: '<BACKGROUND-COLOR>',
   },
 
+  // Range definition
   rangeSelector : {
     buttons : [{
       type : 'hour',
@@ -76,17 +85,19 @@ RCandles_html <- function(id, style, class, ...) {
   },
 
 
+  // Candlesticks colors and styles
   plotOptions: {
     candlestick: {
-      lineWidth: 2,
-      lineColor: 'green',
-      color: 'white',
-      upColor: 'rgba(255, 255, 255, 0)'
+      lineWidth: 1,
+      lineColor: '<LINE-COLOR>',
+      color: '<DOWN-COLOR>',
+      upColor: '<UP-COLOR>'
     }
   },
 
+  // Chart title
   title: {
-    text: 'Trade Performance Chart',
+    text: '<TITLE>',
     style: {
       color: 'white',
       fontWeight: 'bold'
@@ -95,17 +106,7 @@ RCandles_html <- function(id, style, class, ...) {
 
   xAxis: {
 
-    plotLines: [{
-      color: 'white',
-      width: 2,
-      dashStyle: 'dash',
-      value: (new Date('10/12/2011 00:00:00')).getTime()
-    },{
-      color: 'white',
-      width: 2,
-      dashStyle: 'dash',
-      value: (new Date('10/14/2011 00:00:00')).getTime()
-    }],
+    plotLines: <VERTICAL_LINES>,
 
     plotBands: [{
       from: (new Date('10/12/2011 20:00:00')).getTime(),
@@ -146,7 +147,7 @@ RCandles_html <- function(id, style, class, ...) {
     title: {
       text: ''
     },
-    height: '60%',
+    height: '70%',
     lineWidth: 1,
     gridLineWidth: 1,
     minorGridLineWidth: 0
@@ -221,17 +222,58 @@ RCandles_html <- function(id, style, class, ...) {
     stri_replace_all_fixed(txt, pattern, replacement)
   }
 
-  .script <- impute(.script, pattern = "<DATA>",
-                    replacement = data_str)
+  .script %<>%
+    impute(pattern = "<DATA>", replacement = data_str) %>%
+    impute(pattern = "<TITLE>", replacement = RCandlesEnv$x$title) %>%
+    impute(pattern = "<BACKGROUND-COLOR>", replacement = RCandlesEnv$x$background_color) %>%
+    impute(pattern = "<LINE-COLOR>", replacement = RCandlesEnv$x$line_color) %>%
+    impute(pattern = "<UP-COLOR>", replacement = RCandlesEnv$x$up_color) %>%
+    impute(pattern = "<DOWN-COLOR>", replacement = RCandlesEnv$x$down_color)
+
+  if (is.null(RCandlesEnv$x$vertical_lines)) {
+    .script %<>% impute(pattern = "plotLines: <VERTICAL_LINES>,", replacement = "")
+  } else {
+    .vline <- list(
+      color = 'white',
+      width = 1,
+      dashStyle = 'dash',
+      value = NA
+    )
+
+    # Creates
+    all_vlines <- llply(RCandlesEnv$x$vertical_lines, function(v) {
+      vline <- .vline
+      vline$value <- as.numeric(as.POSIXct(v, origin = "1970-01-01"))
+      vline
+    }) %>% toJSON(auto_unbox = TRUE)
+
+    # Imputes vertical lines
+    .script %<>% impute("<VERTICAL_LINES>", all_vlines)
+  }
 
 
-#   .script <- impute(.script, pattern = "%s",
-#                     replacement = readLines(.data) %>% stri_c(collapse = "\\n"))
+
+#
+#
+#
+# "{
+#   color: 'white',
+#   width: 1,
+#   dashStyle: 'dash',
+#   value: (new Date('10/12/2011 00:00:00')).getTime()
+#     },{
+#       color: 'white',
+#       width: 1,
+#       dashStyle: 'dash',
+#       value: (new Date('10/14/2011 00:00:00')).getTime()
+#     }"
 
   # Returns list of tags
   tagList(
     tags$head(HTML(.head)),
-    tags$div("", id = "container", style = "min-height: 600px; min-width: 310px"),
+    tags$div("",
+             id = "container",
+             style = sprintf("height: %dpx; width: %dpx", RCandlesEnv$x$height, RCandlesEnv$x$width)),
     tags$script(HTML(.script))
   )
 }

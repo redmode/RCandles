@@ -12,6 +12,7 @@ Depends:
     jsonlite,
     magrittr,
     stringi,
+    plyr,
     dplyr,
     TTR,
     xts
