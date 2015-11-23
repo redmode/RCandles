@@ -8,8 +8,8 @@ RCandles <- function(filename,
                      up_color = "white",
                      down_color = "rgba(255, 255, 255, 0)",
                      vertical_lines = NULL,
-                     trendlines = NULL,
-                     annotations = NULL) {
+                     symbols = NULL,
+                     trendlines = NULL) {
 
   # forward options using x
   x <- list(
@@ -21,6 +21,7 @@ RCandles <- function(filename,
     up_color = up_color,
     down_color = down_color,
     vertical_lines = vertical_lines,
+    symbols = symbols,
     trendlines = trendlines)
 
   RCandlesEnv$filename <- normalizePath(filename)
@@ -84,7 +85,6 @@ RCandles_html <- function(id, style, class, ...) {
     inputEnabled : false
   },
 
-
   // Candlesticks colors and styles
   plotOptions: {
     candlestick: {
@@ -105,35 +105,8 @@ RCandles_html <- function(id, style, class, ...) {
   },
 
   xAxis: {
-
     plotLines: <VERTICAL_LINES>,
-
-    plotBands: [{
-      from: (new Date('10/12/2011 20:00:00')).getTime(),
-      to: (new Date('10/13/2011 20:00:00')).getTime(),
-      label: {
-        text: '6.5%',
-        align: 'center',
-        verticalAlign: 'bottom',
-        style: {
-          color: 'white'
-        },
-        y: -20
-      }
-    },{
-      from: (new Date('10/09/2011 04:00:00')).getTime(),
-      to: (new Date('10/09/2011 10:00:00')).getTime(),
-      label: {
-        text: '\u21E7 ',
-        align: 'center',
-        verticalAlign: 'bottom',
-        style: {
-          color: 'white'
-        },
-        y: -20
-      }
-    }]
-
+    plotBands: <SYMBOLS>
   },
 
   yAxis: [{
@@ -175,44 +148,45 @@ RCandles_html <- function(id, style, class, ...) {
     type: 'candlestick',
     name: 'AAPL',
     data: data
-  }/*, {
-                name: 'Boxes',
-            	type: 'polygon',
-                lineWidth: 2,
-            	lineColor:'orange',
-                color:'rgba(255, 255, 255, 0)',
-                data: [[(new Date('10/12/2011 20:00:00')).getTime(),380],[(new Date('10/12/2011 20:00:00')).getTime(),420],
-[(new Date('10/13/2011 20:00:00')).getTime(),420],
-[(new Date('10/13/2011 20:00:00')).getTime(),380]]
-
-            }, {
-                name: 'Triangles',
-            	type: 'polygon',
-                lineWidth: 0,
-                color:'rgba(255, 153, 0, 0.5)',
-                data: [[(new Date('10/12/2011 20:00:00')).getTime(),410],
-[(new Date('10/13/2011 20:00:00')).getTime(),410],
-[(new Date('10/13/2011 20:00:00')).getTime(),390]]
-
-            }, {
-                type: 'polygon',
-                name: 'Buy-Sell-Red',
-                lineWidth: 0,
-                color:'red',
-                data: [
-                    [(new Date('10/12/2011 00:00:00')).getTime(),380],[(new Date('10/12/2011 00:00:00')).getTime(),390], [(new Date('10/12/2011 00:00:00')).getTime() + 46400000,390], [(new Date('10/12/2011 00:00:00')).getTime() + 46400000,380],
-                ],
-                yAxis: 1,
-            },{
-                type: 'polygon',
-                name: 'Buy-Sell-Yellow',
-                lineWidth: 0,
-                color:'yellow',
-                data: [
-                    [(new Date('10/12/2011 00:00:00')).getTime(),390],[(new Date('10/12/2011 00:00:00')).getTime(),400], [(new Date('10/12/2011 00:00:00')).getTime() + 86400000,400], [(new Date('10/12/2011 00:00:00')).getTime() + 86400000,390],
-                ],
-                yAxis: 1,
-            }*/]
+  }, {
+    name: 'Boxes',
+    type: 'polygon',
+    lineWidth: 2,
+    lineColor: 'red',
+    color: 'rgba(255, 255, 255, 0)',
+    data: [[1396526400, 65.5],
+           [1396548000, 65.5],
+           [1396548000, 66],
+           [1396526400, 66]]
+  }, {
+    name: 'Triangles',
+    type: 'polygon',
+    lineWidth: 0,
+    color: 'rgba(255, 153, 0, 0.5)',
+    data: [[1396580800, 66.4],
+           [1396620800, 65],
+           [1396580800, 65]]
+  }, {
+    name: 'Buy-Sell-Red',
+    type: 'polygon',
+    lineWidth: 0,
+    color:'red',
+    data: [[1396526400, 65],
+           [1396526400, 65.5],
+           [1396548000, 65.5],
+           [1396548000, 65]],
+    yAxis: 1
+  }, {
+    name: 'Buy-Sell-Yellow',
+    type: 'polygon',
+    lineWidth: 0,
+    color:'yellow',
+    data: [[1396530400, 64],
+           [1396530400, 64.5],
+           [1396578000, 64.5],
+           [1396578000, 64]],
+    yAxis: 1
+  }]
   });
   });
 "
@@ -230,6 +204,7 @@ RCandles_html <- function(id, style, class, ...) {
     impute(pattern = "<UP-COLOR>", replacement = RCandlesEnv$x$up_color) %>%
     impute(pattern = "<DOWN-COLOR>", replacement = RCandlesEnv$x$down_color)
 
+  # Adds vertical lines
   if (is.null(RCandlesEnv$x$vertical_lines)) {
     .script %<>% impute(pattern = "plotLines: <VERTICAL_LINES>,", replacement = "")
   } else {
@@ -251,22 +226,37 @@ RCandles_html <- function(id, style, class, ...) {
     .script %<>% impute("<VERTICAL_LINES>", all_vlines)
   }
 
+  # Adds symbols
+  if (is.null(RCandlesEnv$x$symbols)) {
+    .script %<>% impute(pattern = "plotBands: <SYMBOLS>", replacement = "")
+  } else {
+    .symbol <- list(
+      from = NA,
+      to = NA,
+      label = list(
+        text = NA,
+        align = "center",
+        verticalAlign = "bottom",
+        y = NA,
+        style = list(
+          color = "white"
+        )
+      )
+    )
 
+    # Creates symbols
+    all_symbols <- llply(RCandlesEnv$x$symbols, function(symb) {
+      symbol <- .symbol
+      symbol$from <- as.numeric(as.POSIXct(symb$from, origin = "1970-01-01"))
+      symbol$to <- as.numeric(as.POSIXct(symb$to, origin = "1970-01-01"))
+      symbol$label$text <- symb$text
+      symbol$label$y <- symb$y
+      symbol
+    }) %>% toJSON(auto_unbox = TRUE)
 
-#
-#
-#
-# "{
-#   color: 'white',
-#   width: 1,
-#   dashStyle: 'dash',
-#   value: (new Date('10/12/2011 00:00:00')).getTime()
-#     },{
-#       color: 'white',
-#       width: 1,
-#       dashStyle: 'dash',
-#       value: (new Date('10/14/2011 00:00:00')).getTime()
-#     }"
+    # Imputes vertical lines
+    .script %<>% impute("<SYMBOLS>", all_symbols)
+  }
 
   # Returns list of tags
   tagList(
