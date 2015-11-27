@@ -272,7 +272,6 @@ RCandles_html <- function(id, style, class, ...) {
 #'
 #' @export
 RCandlesOutput <- function(outputId, width = '100%', height = '400px') {
-
   shinyWidgetOutput(outputId, 'id_RCandles', width, height, package = 'RCandles')
 }
 
