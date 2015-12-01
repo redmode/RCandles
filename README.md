@@ -81,6 +81,9 @@ RCandles(
 )
 ```
 
+![Basic example](inst/images/chart_1.png)
+
+
 ### Without lower window
 
 ```{r}
@@ -107,6 +110,9 @@ RCandles(
 )
 ```
 
+![Without lower window](inst/images/chart_2.png)
+
+
 ### Without volume and lower window
 
 ```{r}
@@ -131,3 +137,5 @@ RCandles(
                                 "2014-04-04 00:00 UTC") %>% ymd_hm()) * 1000
 )
 ```
+
+![Without volume and lower window](inst/images/chart_3.png)
