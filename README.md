@@ -18,7 +18,7 @@ devtools::install_github("redmode/RCandles")
 library(RCandles)
 
 # Reads data
-datafile <- "AAPL_bt_data.rda"
+datafile <- system.file("examples/AAPL_bt_data.rda", package = "RCandles")
 datavar <- load(datafile)
 bt_data <- get(datavar) %>%
   mutate(Date = as.numeric(ymd_hm(Date)) * 1000) %>%
