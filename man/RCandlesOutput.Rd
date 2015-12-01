@@ -4,7 +4,8 @@
 \alias{RCandlesOutput}
 \title{Widget output function for use in Shiny}
 \usage{
-RCandlesOutput(outputId, width = "100\%", height = "400px")
+RCandlesOutput(outputId, width = "100\%", height = sprintf("\%dpx",
+  RCandlesEnv$x$height))
 }
 \description{
 Widget output function for use in Shiny

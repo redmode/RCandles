@@ -9,6 +9,7 @@ Depends:
     R (>= 3.2.1),
     htmltools,
     htmlwidgets,
+    lubridate,
     jsonlite,
     magrittr,
     stringi,
@@ -18,4 +19,4 @@ Depends:
     xts
 License: MIT
 LazyData: true
-RoxygenNote: 5.0.0
+RoxygenNote: 5.0.1

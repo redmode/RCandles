@@ -3,5 +3,4 @@
 export(RCandles)
 export(RCandlesOutput)
 export(RCandles_html)
-export(dateToJS)
 export(renderRCandles)
