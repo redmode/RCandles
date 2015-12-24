@@ -3,4 +3,8 @@
 export(RCandles)
 export(RCandlesOutput)
 export(RCandles_html)
+export(RMotifs)
+export(RMotifsOutput)
+export(RMotifs_html)
 export(renderRCandles)
+export(renderRMotifs)

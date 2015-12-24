@@ -16,7 +16,8 @@ Depends:
     plyr,
     dplyr,
     TTR,
-    xts
+    xts,
+    RColorBrewer
 License: MIT
 LazyData: true
 RoxygenNote: 5.0.1

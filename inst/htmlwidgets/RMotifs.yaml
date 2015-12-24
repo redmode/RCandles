@@ -1,0 +1,17 @@
+# (uncomment to add a dependency)
+# dependencies:
+#  - name:
+#    version:
+#    src:
+#    script:
+#    stylesheet:
+
+dependencies:
+  - name: highcharts
+    version: 0.5.0
+    src: htmlwidgets/lib/highcharts-0.5.0
+    script:
+      - jquery-1.11.3.min.js
+      - highstock.js
+      - highcharts-more.js
+      - exporting.js

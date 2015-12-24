@@ -17,125 +17,58 @@ devtools::install_github("redmode/RCandles")
 ```{r}
 library(RCandles)
 
-# Reads data
-datafile <- system.file("examples/AAPL_bt_data.rda", package = "RCandles")
-datavar <- load(datafile)
-bt_data <- get(datavar) %>%
-  mutate(Date = as.numeric(ymd_hm(Date)) * 1000) %>%
-  tbl_df()
+# Motifs------------------------------------------------------------------------
+
+# Loads backtesting data
+bt_file <- system.file("examples/bt_data.rda", package = "RCandles")
+bt <- get(load(bt_file)) %>% tbl_df()
+
+ar_file <- system.file("examples/ar_trades.Rdata", package = "RCandles")
+ar <- get(load(ar_file)) %>% tbl_df()
+
+# Loads trade logs
+logs_file <- system.file("examples/tradelogs.csv", package = "RCandles")
+trades <- ar %>%
+  select(TimeOpen, TimeClose, Type, OpenPrice, ClosePrice, SLprice, TPprice, Profit_Perc, rankfiltered)
+
+# Loads motifs
+motifs_file <- system.file("examples/motifs.RData", package = "RCandles")
+motifs <- load(motifs_file)
+motifs <- get(motifs[2]) %>% tbl_df()
 
 # Extracts prices
-price_data <- bt_data %>%
+price_data <- bt %>%
   select(Date, Open, High, Low, Close)
 
 # Adds fake volume
-volume_data <- bt_data %>%
+volume_data <- bt %>%
   select(Date) %>%
   rowwise() %>%
-  mutate(Volume = round(runif(1, 1, 10)))
+  mutate(Volume = round(runif(1, 1, 10))) %>%
+  ungroup()
 
 # Extracts StopLosses
-ind_sl_buy <- bt_data %>%
+ind_sl_buy <- bt %>%
   select(Date, Value = STOPLOSS_BUY)
 
-ind_sl_sell <- bt_data %>%
-  select(Date, Value = STOPLOSS_SELL)
-
-# Calculates custom indicators
-ind_sma13 <- price_data %>%
-  mutate(Value = SMA(Close, n = 13)) %>%
-  select(Date, Value) %>%
-  na.omit()
-
-ind_sma21 <- price_data %>%
-  mutate(Value = SMA(Close, n = 21)) %>%
-  select(Date, Value) %>%
-  na.omit()
-```
-
-### Basic example
-
-```{r}
-RCandles(
-  price_data,
-  volume_data = volume_data,
-  title = "AAPL Chart with StopLoss",
+# Plots motifs
+RMotifs(
+  price_data = price_data,
+  motifs = motifs,
+  trades = trades,
+  motif_names = c("dcba dcaa", "dcab dbab", "aacd abcd abdd", "babd bacd"),
+  title = "Demo (AAPL) Motifs",
   width = 800,
-  height = 600,
-  background_color = "black",
-  line_color = "darkgreen",
-  up_color = "white",
-  enable_hover = FALSE,
-  enable_lower_window = TRUE,
-  indicators = list(
-           list(name = "SL_BUY", data = ind_sl_buy, color = "blue", type = "line", dashStyle = "dot", lineWidth = 2),
-           list(name = "SL_SELL", data = ind_sl_sell, color = "red", type = "line", dashStyle = "dot"),
-           list(name = "SMA13", data = ind_sma13, color = "red", type = "line", dashStyle = "solid", yAxis = 2),
-           list(name = "SMA21", data = ind_sma21, color = "orange", type = "line", dashStyle = "dash", yAxis = 2)
-         ),
-  vertical_lines = as.numeric(c("2014-03-31 00:00 UTC",
-                                "2014-04-01 00:00 UTC",
-                                "2014-04-02 00:00 UTC",
-                                "2014-04-03 00:00 UTC",
-                                "2014-04-04 00:00 UTC") %>% ymd_hm()) * 1000
+  height = 600
+)
+
+RMotifs(
+  price_data = price_data,
+  motifs = motifs,
+  motif_top = 20,
+  trades = trades,
+  title = "Demo (AAPL) Motifs",
+  width = 800,
+  height = 600
 )
 ```
-
-![Basic example](inst/images/chart_1.png)
-
-
-### Without lower window
-
-```{r}
-RCandles(
-  price_data,
-  volume_data = volume_data,
-  title = "AAPL Chart with StopLoss",
-  width = 800,
-  height = 600,
-  background_color = "black",
-  line_color = "darkgreen",
-  up_color = "white",
-  enable_hover = FALSE,
-  enable_lower_window = FALSE,
-  indicators = list(
-           list(name = "SL_BUY", data = ind_sl_buy, color = "blue", type = "line", dashStyle = "dot", lineWidth = 2),
-           list(name = "SL_SELL", data = ind_sl_sell, color = "red", type = "line", dashStyle = "dot")
-         ),
-  vertical_lines = as.numeric(c("2014-03-31 00:00 UTC",
-                                "2014-04-01 00:00 UTC",
-                                "2014-04-02 00:00 UTC",
-                                "2014-04-03 00:00 UTC",
-                                "2014-04-04 00:00 UTC") %>% ymd_hm()) * 1000
-)
-```
-
-![Without lower window](inst/images/chart_2.png)
-
-
-### Without volume and lower window
-
-```{r}
-RCandles(
-  price_data,
-  title = "AAPL Chart with StopLoss",
-  width = 800,
-  height = 600,
-  background_color = "black",
-  line_color = "darkgreen",
-  up_color = "white",
-  enable_hover = FALSE,
-  enable_lower_window = FALSE,
-  indicators = list(
-           list(name = "SL_BUY", data = ind_sl_buy, color = "blue", type = "line", dashStyle = "dot", lineWidth = 2),
-           list(name = "SL_SELL", data = ind_sl_sell, color = "red", type = "line", dashStyle = "dot")
-         ),
-  vertical_lines = as.numeric(c("2014-03-31 00:00 UTC",
-                                "2014-04-01 00:00 UTC",
-                                "2014-04-02 00:00 UTC",
-                                "2014-04-03 00:00 UTC",
-                                "2014-04-04 00:00 UTC") %>% ymd_hm()) * 1000
-)
-```
-
-![Without volume and lower window](inst/images/chart_3.png)
