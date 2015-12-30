@@ -1,135 +1,54 @@
 #' @export
-RMotifs <- function(price_data,
-                    volume_data = NULL,
-                    motifs,
-                    motif_names = NULL,
-                    motif_top = 10,
-                    trades = NULL,
-                    from = "2014-01-01 00:00",
-                    to = "2014-03-31 00:00",
-                    title = "",
-                    width = 1000,
-                    height = 800,
-                    background_color = "black",
-                    line_color = "green",
-                    up_color = "rgba(255, 255, 255, 0)",
-                    down_color = "white",
-                    enable_hover = TRUE,
-                    enable_lower_window = FALSE,
-                    vertical_lines = NULL,
-                    symbols = NULL,
-                    trendlines = NULL) {
-
-  # Filters motifs by name/top--------------------------------------------------
-  if (is.null(motif_names)) {
-    motifs <- head(motifs, motif_top)
-  } else {
-    motifs <- motifs %>% filter(ruleExpRuleString %in% motif_names)
-  }
-
-  if (nrow(motifs) < 1) {
-    stop("Empty motifs! Please, check the names...")
-  }
+RBacktesting <- function(price_data,
+                         volume_data = NULL,
+                         stop_loss = NULL,
+                         trades = NULL,
+                         from = "2014-01-01 00:00",
+                         to = "2014-03-31 00:00",
+                         title = "Backtesting",
+                         width = 1000,
+                         height = 800,
+                         background_color = "black",
+                         line_color = "green",
+                         up_color = "rgba(255, 255, 255, 0)",
+                         down_color = "white",
+                         enable_hover = TRUE,
+                         enable_lower_window = FALSE) {
 
   # Creates dates range---------------------------------------------------------
   from <- as.numeric(ymd_hm(from)) * 1000
   to <- as.numeric(ymd_hm(to)) * 1000
 
-  # Generate colors for motifs--------------------------------------------------
-#   colors <- colorRampPalette(c("white", "steelblue", "darkred"))
-#   .colors <- colors(nrow(motifs))
+  # Identify days (for vertical lines)------------------------------------------
+  vertical_lines <- price_data %>%
+    mutate(num_date = as.numeric(ymd_hm(Date)) * 1000) %>%
+    filter(between(num_date, from, to)) %>%
+    mutate(Date = ymd_hm(Date),
+           year = year(Date),
+           month = month(Date),
+           day = day(Date)) %>%
+    group_by(year, month, day) %>%
+    summarise(Date = ymd_hms(sprintf("%4d-%2d-%2d 00:00:00", year[1], month[1], day[1])) %>%
+                as.numeric() %>% `*`(1000)) %$% Date
 
-  # Transforms date to ticks (in prices)----------------------------------------
+  # Transforms price date to ticks----------------------------------------------
   price_data %<>%
     mutate(Date = as.numeric(ymd_hm(Date)) * 1000) %>%
     filter(between(Date, from, to))
 
-  # Pre-processes motifs--------------------------------------------------------
-  rerank <- function(x) {
-    ranks <- data_frame(x = unique(x), r = rank(-unique(x), ties.method = "min"))
-    data_frame(x = x) %>%
-      left_join(ranks, by = "x") %$%
-      r
+  # Filters stop-loss data------------------------------------------------------
+  if (!is.null(stop_loss)) {
+    # Converts to format compatible with indicators
+    stop_loss <- list(name = "Stoploss",
+                      data = stop_loss,
+                      color = "#4444aa",
+                      dashStyle = "dot")
+
+    # Filters data
+    stop_loss$data %<>%
+      mutate(Date = as.numeric(ymd_hm(Date)) * 1000) %>%
+      filter(between(Date, from, to))
   }
-
-  # Extracts start/finish date & motifs' names
-  motifs <- motifs %>%
-    mutate(motif_rank = rank(ruleFreq, ties.method = "min")) %>%
-    group_by(motif_rank, ruleString, ruleExpRuleString) %>%
-    do({
-      motif <- .
-
-      start <- as.numeric(ymd_hm(motif$ruleStartPositions[[1]])) * 1000
-      finish <- as.numeric(ymd_hm(motif$ruleEndPositions[[1]])) * 1000
-
-      if (length(start) != length(finish)) {
-        stop("Lengths of start and end positions are not equal!")
-      }
-
-      data_frame(start = start, finish = finish, level = motif$ruleLevel)
-    }) %>%
-    filter(start >= from, finish <= to) %>%
-    ungroup() %>%
-    mutate(motif_rank = rerank(motif_rank))
-
-  # Transforms motifs to indicators---------------------------------------------
-  motifs <- motifs %>%
-    mutate(motif_level = stri_count_fixed(ruleString, "R")) %>%
-    ungroup() %>%
-    mutate(motif_level = max(motif_level) - motif_level) %>%
-    rowwise() %>%
-    # Adds prices to motifs
-    do({
-      color <- ifelse(.$motif_level %% 2 == 1, "yellow", "red")
-      rule <- .$ruleExpRuleString
-      start <- .$start
-      finish <- .$finish
-      lvl <- .$motif_rank
-
-      date_range <- price_data %>%
-        filter(between(Date, start, finish)) %>%
-        summarise(min_date = min(Date),
-                  max_date = max(Date))
-
-      data_frame(
-        id = runif(1),
-        color = color,
-        rule = rule,
-        Date = c(date_range$min_date, date_range$min_date,
-                 date_range$max_date, date_range$max_date),
-        Value = c(lvl + 0.1, lvl + 0.9, lvl + 0.9, lvl + 0.1)
-      )
-    }) %>%
-    ungroup() %>%
-    group_by(id, rule) %>%
-    # Transforms motifs to list of indicators
-    do({
-      .data <- .
-      .color <- .data$color[1]
-      .name <- as.character(.data$rule[1])
-      .data %<>% select(Date, Value)
-
-      ind <- list(
-        name = .name,
-        data = .data,
-        color = .color,
-        type = "polygon",
-        dashStyle = "solid",
-        lineWidth = 1,
-        yAxis = 1
-      )
-
-      symb <- list(
-        from = .data$Date[1],
-        to = rev(.data$Date)[1],
-        text = .name,
-        y = min(.data$Value))
-
-      data_frame(indicator = list(ind), symbol = list(symb))
-    })
-
-  indicators <- motifs$indicator
-  # symbols <- motifs$symbol
 
   # Processes tradelogs---------------------------------------------------------
   if (!is.null(trades)) {
@@ -141,6 +60,7 @@ RMotifs <- function(price_data,
       filter(TimeOpen >= from, TimeClose <= to) %>%
       rowwise()
 
+    # Extracts symbols
     symbols <- trades %>%
       select(from = TimeOpen, to = TimeClose, text = Profit_Perc) %>%
       do(symb = {
@@ -156,8 +76,9 @@ RMotifs <- function(price_data,
              type = "polygon",
              lineWidth = 0,
              color = ifelse(stri_sub(.trade$Profit_Perc, 1, 1) == "-",
-                            "rgba(255, 0, 0, 0.5)",
-                            "rgba(255, 153, 0, 0.5)"),
+                            "rgba(255, 0, 0, 0.3)",
+                            "rgba(255, 153, 0, 0.3)"),
+             zIndex = 10,
              data = list(c(.trade$TimeOpen, .trade$OpenPrice),
                          c(.trade$TimeClose, .trade$OpenPrice),
                          c(.trade$TimeClose, .trade$ClosePrice))
@@ -182,6 +103,10 @@ RMotifs <- function(price_data,
                          c(.trade$TimeOpen, .low))
         )
       }) %$% box
+  } else {
+    trades <- NULL
+    symbols <- NULL
+    triangles <- NULL
   }
 
   # Processes volume------------------------------------------------------------
@@ -203,22 +128,21 @@ RMotifs <- function(price_data,
     up_color = up_color,
     down_color = down_color,
     enable_hover = enable_hover,
-    enable_lower_window = enable_lower_window,
-    vertical_lines = vertical_lines,
-    symbols = symbols,
-    trendlines = trendlines)
+    enable_lower_window = enable_lower_window)
 
   RCandlesEnv$price_data <- price_data
   RCandlesEnv$volume_data <- volume_data
-  RCandlesEnv$indicators <- indicators
-  RCandlesEnv$motifs <- motifs
+  RCandlesEnv$stop_loss <- stop_loss
   RCandlesEnv$trades <- trades
   RCandlesEnv$triangles <- triangles
+  RCandlesEnv$symbols <- symbols
+  RCandlesEnv$vertical_lines <- vertical_lines
+
   RCandlesEnv$x <- x
 
-  # Creates widget
+  # Creates widget--------------------------------------------------------------
   htmlwidgets::createWidget(
-    name = 'RMotifs',
+    name = 'RBacktesting',
     x,
     width = width,
     height = height,
@@ -228,7 +152,7 @@ RMotifs <- function(price_data,
 
 
 #' @export
-RMotifs_html <- function(id, style, class, ...) {
+RBacktesting_html <- function(id, style, class, ...) {
 
   # Gets JSON from file
   prices <- RCandlesEnv$price_data
@@ -254,14 +178,18 @@ RMotifs_html <- function(id, style, class, ...) {
   tooltip: {
     enabled: <HOVER>,
     shared: false,
-    useHTML: true,
+    useHTML: false,
     headerFormat: '',
-    pointFormat: '<b>{series.name}</b>'
+    pointFormat: '{series.name}'
   },
 
   // Range definition
   rangeSelector : {
     buttons : [{
+      type : 'hour',
+      count : 4,
+      text : '4h'
+    }, {
       type : 'day',
       count : 1,
       text : '1D'
@@ -274,15 +202,11 @@ RMotifs_html <- function(id, style, class, ...) {
       count : 1,
       text : '1W'
     }, {
-      type : 'month',
-      count : 1,
-      text : '1M'
-    }, {
       type : 'all',
       count : 1,
       text : 'All'
     }],
-    selected : 1,
+    selected : 2,
     inputEnabled : false
   },
 
@@ -304,29 +228,8 @@ RMotifs_html <- function(id, style, class, ...) {
         y: -6,
         format: '{series.name}'
       }
-    },
-    spline: {
-      lineWidth: 3,
-      states: {
-        hover: {
-          lineWidth: 5
-          }
-        },
-      marker: {
-        enabled: false
-      },
-      dataLabels: {
-        enabled: false,
-        borderRadius: 5,
-        backgroundColor: 'rgba(252, 255, 197, 0.5)',
-        borderWidth: 1,
-        borderColor: '#AAA',
-        y: -6,
-        format: '{series.name}'
-      }
     }
   },
-
 
   // Chart title
   title: {
@@ -374,8 +277,7 @@ RMotifs_html <- function(id, style, class, ...) {
     gridLineColor: '<BACKGROUND-COLOR>'
   }, <VOLUME>
    , <LOWER_WINDOW>
-
-  , {
+ ,{
     labels: {
       enabled: true
     },
@@ -388,8 +290,8 @@ RMotifs_html <- function(id, style, class, ...) {
         fontSize: '10px'
       }
     },
-    top: '80%',
-    height: '20%',
+    top: '90%',
+    height: '10%',
     offset: 0,
     lineWidth: 1,
     gridLineWidth: 0
@@ -397,14 +299,16 @@ RMotifs_html <- function(id, style, class, ...) {
 
   series: [
     <INDICATORS>,
+    <STOPLOSS>,
     <VOLUME_SERIES>,
     <BOXES>,
     <TRIANGLES>,
 
     {
       type: 'candlestick',
-      name: '_',
-      data: data
+      name: '.',
+      data: data,
+      zIndex: 0
     }
   ]
 
@@ -430,11 +334,11 @@ RMotifs_html <- function(id, style, class, ...) {
   # Is lower window?
   if (RCandlesEnv$x$enable_lower_window) {
     .script %<>%
-      impute(pattern = "<HEIGHT_MAIN>", replacement = "80")
+      impute(pattern = "<HEIGHT_MAIN>", replacement = "90")
 
     .lower <- list(
-      top = '80%',
-      height = '20%',
+      top = '90%',
+      height = '10%',
       gridLineWidth = 1,
       gridLineColor = RCandlesEnv$x$background_color
     ) %>% toJSON(auto_unbox = TRUE)
@@ -442,21 +346,18 @@ RMotifs_html <- function(id, style, class, ...) {
     .script %<>% impute(pattern = "<LOWER_WINDOW>", replacement = .lower)
   } else {
     .script %<>%
-      impute(pattern = "<HEIGHT_MAIN>", replacement = "80") %>%
+      impute(pattern = "<HEIGHT_MAIN>", replacement = "100") %>%
       impute(pattern = ", <LOWER_WINDOW>", replacement = "")
   }
 
-  # Adds volume
+  # Adds volume-----------------------------------------------------------------
   if (is.null(RCandlesEnv$volume_data)) {
     .script %<>%
       impute(pattern = ", <VOLUME>", replacement = "") %>%
       impute(pattern = "<VOLUME_SERIES>,", replacement = "")
   } else {
     .volume <- list(
-#       labels = list(
-#         enabled = "false"
-#       ),
-      top = sprintf('%d%%', ifelse(RCandlesEnv$x$enable_lower_window, 60, 90)),
+      top = '90%',
       height = '10%',
       offset = 0,
       lineWidth = 2,
@@ -470,6 +371,7 @@ RMotifs_html <- function(id, style, class, ...) {
     # Imputes volume series
     .volume_data <- list(
       type = 'column',
+      name = 'Volume',
       data = RCandlesEnv$volume_data %>% set_colnames(NULL),
       color = '#4444aa',
       yAxis = 1
@@ -477,7 +379,7 @@ RMotifs_html <- function(id, style, class, ...) {
     .script %<>% impute("<VOLUME_SERIES>", .volume_data)
   }
 
-  # Adds indicators
+  # Adds indicators-------------------------------------------------------------
   if (is.null(RCandlesEnv$indicators)) {
     .script %<>% impute(pattern = "<INDICATORS>,", replacement = "")
   } else {
@@ -508,13 +410,42 @@ RMotifs_html <- function(id, style, class, ...) {
                                 indicator)
     })
 
-    # Imputes vertical lines
+    # Imputes code for indicators
     all_indicators %<>% stri_replace_all_fixed('"name"', 'name')
     .script %<>% impute("<INDICATORS>", all_indicators)
   }
 
-  # Adds vertical lines
-  if (is.null(RCandlesEnv$x$vertical_lines)) {
+  # Adds stoplosses-------------------------------------------------------------
+  if (is.null(RCandlesEnv$stop_loss)) {
+    .script %<>% impute(pattern = "<STOPLOSS>,", replacement = "")
+  } else {
+    .stoploss <- list(
+      name = '',
+      type = 'arearange',
+      linkedTo = ':previous',
+      fillOpacity = 0.3,
+      zIndex = 0,
+      color = 'white',
+      dashStyle = 'longdash',
+      lineWidth = 1,
+      yAxis = 0,
+      data = NA
+    )
+
+    # Updates stoploss data
+    stoploss <- .stoploss
+    l_ply(names(RCandlesEnv$stop_loss), function(name_i) {
+      stoploss[[name_i]] <<- RCandlesEnv$stop_loss[[name_i]]
+    })
+    stoploss$data %<>% set_colnames(NULL)
+    stoploss %<>% toJSON(auto_unbox = TRUE, pretty = TRUE)
+
+    # Imputes code for stoploss
+    .script %<>% impute("<STOPLOSS>", stoploss)
+  }
+
+  # Adds vertical lines---------------------------------------------------------
+  if (is.null(RCandlesEnv$vertical_lines)) {
     .script %<>% impute(pattern = "plotLines: <VERTICAL_LINES>,", replacement = "")
   } else {
     .vline <- list(
@@ -525,7 +456,7 @@ RMotifs_html <- function(id, style, class, ...) {
     )
 
     # Creates array of vlines
-    all_vlines <- llply(RCandlesEnv$x$vertical_lines, function(v) {
+    all_vlines <- llply(RCandlesEnv$vertical_lines, function(v) {
       vline <- .vline
       vline$value <- v
       vline
@@ -535,8 +466,8 @@ RMotifs_html <- function(id, style, class, ...) {
     .script %<>% impute("<VERTICAL_LINES>", all_vlines)
   }
 
-  # Adds symbols
-  if (is.null(RCandlesEnv$x$symbols)) {
+  # Adds symbols----------------------------------------------------------------
+  if (is.null(RCandlesEnv$symbols)) {
     .script %<>% impute(pattern = "plotBands: <SYMBOLS>,", replacement = "")
   } else {
     .symbol <- list(
@@ -547,15 +478,15 @@ RMotifs_html <- function(id, style, class, ...) {
         align = "center",
         verticalAlign = "top",
         rotation = 0,
-        yAxis = 0,
         style = list(
-          color = "white"
+          color = "white",
+          `font-size` = "10px"
         )
       )
     )
 
     # Creates array of symbols
-    all_symbols <- llply(RCandlesEnv$x$symbols, function(symb) {
+    all_symbols <- llply(RCandlesEnv$symbols, function(symb) {
       symbol <- .symbol
       symbol$from <- symb$from
       symbol$to <- symb$to
@@ -567,7 +498,7 @@ RMotifs_html <- function(id, style, class, ...) {
     .script %<>% impute("<SYMBOLS>", all_symbols)
   }
 
-  # Adds boxes
+  # Adds boxes------------------------------------------------------------------
   if (is.null(RCandlesEnv$trades)) {
     .script %<>%
       impute(pattern = "<BOXES>,", replacement = "") %>%
@@ -586,12 +517,13 @@ RMotifs_html <- function(id, style, class, ...) {
     .script %<>% impute("<TRIANGLES>", .tri)
   }
 
-  # Returns list of tags
+  # Returns list of tags--------------------------------------------------------
   tagList(
     tags$head(HTML(.head)),
     tags$div("",
              id = "container",
-             style = sprintf("height: %dpx; width: %dpx", RCandlesEnv$x$height, RCandlesEnv$x$width)),
+             style = sprintf("height: %dpx; width: %dpx",
+                             RCandlesEnv$x$height, RCandlesEnv$x$width)),
     tags$script(HTML(.script))
   )
 }
@@ -599,15 +531,15 @@ RMotifs_html <- function(id, style, class, ...) {
 #' Widget output function for use in Shiny
 #'
 #' @export
-RMotifsOutput <- function(outputId, width = '100%', height = sprintf('%dpx', RCandlesEnv$x$height)) {
-  shinyWidgetOutput(outputId, 'id_RMotifs', width, height, package = 'RCandles')
+RBacktestingOutput <- function(outputId, width = '100%', height = sprintf('%dpx', RCandlesEnv$x$height)) {
+  shinyWidgetOutput(outputId, 'id_RBacktesting', width, height, package = 'RCandles')
 }
 
 #' Widget render function for use in Shiny
 #'
 #' @export
-renderRMotifs <- function(expr, env = parent.frame(), quoted = FALSE) {
+renderRBacktesting <- function(expr, env = parent.frame(), quoted = FALSE) {
   if (!quoted) { expr <- substitute(expr) } # force quoted
-  shinyRenderWidget(expr, RMotifsOutput, env, quoted = TRUE)
+  shinyRenderWidget(expr, RBacktestingOutput, env, quoted = TRUE)
 }
 

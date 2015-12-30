@@ -2,7 +2,7 @@
 
 HTMLWidgets.widget({
 
-  name: 'RCandles',
+  name: 'RBacktesting',
 
   type: 'output',
 
@@ -10,15 +10,12 @@ HTMLWidgets.widget({
 
     // return it as part of our instance data
     return {
-      rcandles: rcandles
+      rbacktesting: rbacktesting
     };
 
   },
 
   renderValue: function(el, x, instance) {
-
-    //inchlib.read_data(x.jsondata);
-    //inchlib.draw();
 
   },
 
