@@ -2,6 +2,7 @@
 RBacktesting <- function(price_data,
                          volume_data = NULL,
                          stop_loss = NULL,
+                         indicators = NULL,
                          trades = NULL,
                          from = "2014-01-01 00:00",
                          to = "2014-03-31 00:00",
@@ -42,12 +43,25 @@ RBacktesting <- function(price_data,
     stop_loss <- list(name = "Stoploss",
                       data = stop_loss,
                       color = "#4444aa",
-                      dashStyle = "dot")
+                      dashStyle = "dash",
+                      lineWidth = 2)
 
     # Filters data
     stop_loss$data %<>%
       mutate(Date = as.numeric(ymd_hm(Date)) * 1000) %>%
       filter(between(Date, from, to))
+  }
+
+  # Processes indicators--------------------------------------------------------
+  if (!is.null(indicators)) {
+    indicators %<>% llply(function(ind) {
+      # Transforms and filters dates
+      ind$data %<>%
+        mutate(Date = as.numeric(ymd_hm(Date)) * 1000) %>%
+        filter(between(Date, from, to))
+
+      ind
+    })
   }
 
   # Processes tradelogs---------------------------------------------------------
@@ -133,6 +147,7 @@ RBacktesting <- function(price_data,
   RCandlesEnv$price_data <- price_data
   RCandlesEnv$volume_data <- volume_data
   RCandlesEnv$stop_loss <- stop_loss
+  RCandlesEnv$indicators <- indicators
   RCandlesEnv$trades <- trades
   RCandlesEnv$triangles <- triangles
   RCandlesEnv$symbols <- symbols
@@ -423,10 +438,9 @@ RBacktesting_html <- function(id, style, class, ...) {
       name = '',
       type = 'arearange',
       linkedTo = ':previous',
-      fillOpacity = 0.3,
+      fillOpacity = 0.0,
       zIndex = 0,
       color = 'white',
-      dashStyle = 'longdash',
       lineWidth = 1,
       yAxis = 0,
       data = NA

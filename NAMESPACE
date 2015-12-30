@@ -3,8 +3,4 @@
 export(RBacktesting)
 export(RBacktestingOutput)
 export(RBacktesting_html)
-export(RMotifs)
-export(RMotifsOutput)
-export(RMotifs_html)
 export(renderRBacktesting)
-export(renderRMotifs)
