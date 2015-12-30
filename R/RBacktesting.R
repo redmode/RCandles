@@ -13,6 +13,7 @@ RBacktesting <- function(price_data,
                          line_color = "green",
                          up_color = "rgba(255, 255, 255, 0)",
                          down_color = "white",
+                         vertical_color = "#aaaaaa",
                          enable_hover = TRUE,
                          enable_lower_window = FALSE) {
 
@@ -103,8 +104,14 @@ RBacktesting <- function(price_data,
     trades %<>%
       do(box = {
         .trade <- .
-        .high <- ifelse(.trade$Type == "SELL", .trade$SLprice, .trade$ClosePrice)
-        .low <- ifelse(.trade$Type == "SELL", .trade$ClosePrice, .trade$SLprice)
+
+        if (.trade$Type == "SELL") {
+          .low <- min(.trade$OpenPrice, .trade$ClosePrice)
+            .high <- .trade$SLprice
+        } else {
+          .low <- .trade$SLprice
+          .high <- max(.trade$OpenPrice, .trade$ClosePrice)
+        }
 
         list(name = .trade$Profit_Perc,
              type = "polygon",
@@ -141,6 +148,7 @@ RBacktesting <- function(price_data,
     line_color = line_color,
     up_color = up_color,
     down_color = down_color,
+    vertical_color = vertical_color,
     enable_hover = enable_hover,
     enable_lower_window = enable_lower_window)
 
@@ -305,8 +313,8 @@ RBacktesting_html <- function(id, style, class, ...) {
         fontSize: '10px'
       }
     },
-    top: '90%',
-    height: '10%',
+    top: '80%',
+    height: '20%',
     offset: 0,
     lineWidth: 1,
     gridLineWidth: 0
@@ -349,11 +357,11 @@ RBacktesting_html <- function(id, style, class, ...) {
   # Is lower window?
   if (RCandlesEnv$x$enable_lower_window) {
     .script %<>%
-      impute(pattern = "<HEIGHT_MAIN>", replacement = "90")
+      impute(pattern = "<HEIGHT_MAIN>", replacement = "80")
 
     .lower <- list(
-      top = '90%',
-      height = '10%',
+      top = '80%',
+      height = '20%',
       gridLineWidth = 1,
       gridLineColor = RCandlesEnv$x$background_color
     ) %>% toJSON(auto_unbox = TRUE)
@@ -372,8 +380,8 @@ RBacktesting_html <- function(id, style, class, ...) {
       impute(pattern = "<VOLUME_SERIES>,", replacement = "")
   } else {
     .volume <- list(
-      top = '90%',
-      height = '10%',
+      top = '80%',
+      height = '20%',
       offset = 0,
       lineWidth = 2,
       gridLineWidth = 0
@@ -463,7 +471,7 @@ RBacktesting_html <- function(id, style, class, ...) {
     .script %<>% impute(pattern = "plotLines: <VERTICAL_LINES>,", replacement = "")
   } else {
     .vline <- list(
-      color = '#222222',
+      color = RCandlesEnv$x$vertical_color,
       width = 1,
       dashStyle = 'dash',
       value = NA
@@ -487,6 +495,7 @@ RBacktesting_html <- function(id, style, class, ...) {
     .symbol <- list(
       from = NA,
       to = NA,
+      yAxis = 0,
       label = list(
         text = NA,
         align = "center",
@@ -508,7 +517,7 @@ RBacktesting_html <- function(id, style, class, ...) {
       symbol
     }) %>% toJSON(auto_unbox = TRUE)
 
-    # Imputes vertical lines
+    # Imputes symbols
     .script %<>% impute("<SYMBOLS>", all_symbols)
   }
 
