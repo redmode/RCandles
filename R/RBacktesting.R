@@ -106,11 +106,11 @@ RBacktesting <- function(price_data,
         .trade <- .
 
         if (.trade$Type == "SELL") {
-          .low <- min(.trade$OpenPrice, .trade$ClosePrice)
-            .high <- .trade$SLprice
+          .low <- min(.trade$OpenPrice, .trade$ClosePrice, .trade$TPprice)
+          .high <- .trade$SLprice
         } else {
           .low <- .trade$SLprice
-          .high <- max(.trade$OpenPrice, .trade$ClosePrice)
+          .high <- max(.trade$OpenPrice, .trade$ClosePrice, .trade$TPprice)
         }
 
         list(name = .trade$Profit_Perc,
